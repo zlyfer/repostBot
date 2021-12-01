@@ -20,7 +20,7 @@ const { imageHashes } = require("./imageHashes.json");
 
 const detectConfidence = 85; // % of similarity between two images to be considered a match
 const maxLinks = 5; // maximum number of links to be displayed in the message
-const minutesAutoDelete = 1; // minutes until auto deleting message
+const minutesAutoDelete = 5; // minutes until auto deleting message
 // const reactionEmojis = {
 //   1: "1️⃣",
 //   2: "2️⃣",
@@ -141,7 +141,7 @@ function sendReply(message, messagesLinks, attachmentCount) {
     .then((reply) => {
       deleteTimer[message.id] = setTimeout(() => {
         reply.delete();
-      }, 1000 * 10 * minutesAutoDelete);
+      }, 1000 * 60 * minutesAutoDelete);
     });
 }
 

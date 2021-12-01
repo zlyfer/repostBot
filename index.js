@@ -18,6 +18,7 @@ const { guildID, channelID } = require("./config.json");
 const { token } = require("./token.json");
 const { imageHashes } = require("./imageHashes.json");
 
+const detectConfidence = 85; // % of similarity between two images to be considered a match
 // const reactionEmojis = {
 //   1: "1️⃣",
 //   2: "2️⃣",
@@ -172,7 +173,7 @@ function compareHashes(hash, minSimilarity) {
       similarImages.push({ ..._image, percent: percent, hash: _image.hash });
     }
   });
-  if (similarImages.length == 0 && minSimilarity >= 40) return compareHashes(hash, minSimilarity - 10);
+  if (similarImages.length == 0 && minSimilarity >= detectConfidence) return compareHashes(hash, minSimilarity - 10);
   else return { similarImages, confidence: minSimilarity };
 }
 

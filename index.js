@@ -1,8 +1,5 @@
 // jshint esversion: 6
 
-// TODO: Let only the author of the message use the buttons.
-// TODO: Delete hashes upon message deletion (manual deletion by a user).
-
 const fs = require("fs");
 const Jimp = require("jimp");
 const { Client, Intents, MessageActionRow, MessageButton } = require("discord.js");
@@ -22,6 +19,8 @@ const { token } = require("./token.json");
 const { imageHashes } = require("./imageHashes.json");
 
 const detectConfidence = 85; // % of similarity between two images to be considered a match
+const maxLinks = 5; // maximum number of links to be displayed in the message
+const minutesAutoDelete = 1; // minutes until auto deleting message
 // const reactionEmojis = {
 //   1: "1️⃣",
 //   2: "2️⃣",
@@ -37,19 +36,31 @@ const detectConfidence = 85; // % of similarity between two images to be conside
 // };
 
 let toAddHashes = {};
+let deleteTimer = {};
 
 client.on("ready", () => {
   console.log(`Bot (${client.user.tag}) ready.`);
 });
 
 client.on("interactionCreate", async (interaction) => {
-  interaction.message.delete();
   const data = interaction.customId.split(":");
   const action = data[0];
   const messageID = data[1];
-  const message = await interaction.message.channel.messages.fetch(messageID);
-  if (action == "DELETE") message.delete();
-  if (action != "DELETE") addHash(messageID);
+  const authorID = data[2];
+  if (interaction.member.id == authorID) {
+    interaction.message.delete();
+    const message = await interaction.message.channel.messages.fetch(messageID);
+    if (action == "DELETE") message.delete();
+    if (action != "DELETE") addHash(messageID);
+  }
+});
+
+client.on("messageDelete", async (message) => {
+  if (deleteTimer[message.id]) {
+    clearTimeout(deleteTimer[message.id]);
+    delete deleteTimer[message.id];
+  }
+  removeHash(message.id);
 });
 
 client.on("messageCreate", async (message) => {
@@ -76,7 +87,7 @@ async function getMessageLinks(message, messagesLinks, attachments, index) {
       if (attachments.size > 1) messagesLinks.content += `${index + 1}${enumerate(index + 1)} Image | `;
       messagesLinks.content += `*Confidence: ~${confidence}%*\n`;
       similarImages.forEach((similarImage, index) => {
-        if (index <= 5) {
+        if (index <= maxLinks) {
           checkMessage(message.channel, similarImage.messageID);
           messagesLinks.count++;
           messagesLinks.content += `https://discord.com/channels/${guildID}/${channelID}/${similarImage.messageID}\n`;
@@ -103,9 +114,12 @@ function sendReply(message, messagesLinks, attachmentCount) {
   //       });
   // });
   const row = new MessageActionRow().addComponents(
-    new MessageButton().setCustomId(`DELETE:${message.id}`).setLabel("Yes").setStyle("DANGER"),
-    new MessageButton().setCustomId(`IGNORE:${message.id}`).setLabel("No").setStyle("SUCCESS"),
-    new MessageButton().setCustomId(`NOREPOST:${message.id}`).setLabel("Not a Repost").setStyle("SECONDARY")
+    new MessageButton().setCustomId(`DELETE:${message.id}:${message.author.id}`).setLabel("Yes").setStyle("DANGER"),
+    new MessageButton().setCustomId(`IGNORE:${message.id}:${message.author.id}`).setLabel("No").setStyle("SUCCESS"),
+    new MessageButton()
+      .setCustomId(`NOREPOST:${message.id}:${message.author.id}`)
+      .setLabel("Not a Repost")
+      .setStyle("SECONDARY")
   );
   message
     .reply({
@@ -119,13 +133,15 @@ function sendReply(message, messagesLinks, attachmentCount) {
         attachmentCount > 1
           ? `\n**You posted ${attachmentCount} images in one message, if you click on Yes the whole message with all images will be deleted!**`
           : ""
-      }\n\nThis message will self destruct in 5 minutes (hopefully).`,
+      }\n\nThis message will self destruct in ${minutesAutoDelete} minute${
+        minutesAutoDelete != 1 ? "s" : ""
+      } (hopefully).`,
       components: [row],
     })
     .then((reply) => {
-      setTimeout(() => {
+      deleteTimer[message.id] = setTimeout(() => {
         reply.delete();
-      }, 1000 * 60 * 5);
+      }, 1000 * 10 * minutesAutoDelete);
     });
 }
 
@@ -147,10 +163,8 @@ function checkMessage(channel, messageID) {
 }
 
 function removeHash(messageID) {
-  imageHashes.splice(
-    imageHashes.findIndex((imageHash) => imageHash.messageID == messageID),
-    1
-  );
+  let index = imageHashes.findIndex((imageHash) => imageHash.messageID == messageID);
+  if (index != -1) imageHashes.splice(index, 1);
   saveHashes();
 }
 

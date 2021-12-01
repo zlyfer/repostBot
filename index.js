@@ -87,7 +87,7 @@ async function getMessageLinks(message, messagesLinks, attachments, index) {
 
 function sendReply(message, messagesLinks, attachmentCount) {
   // NOTE: Not working with multiple attachments:
-  // NOTE: Confidence is now in 5% steps, not 10% steps, which makes following code incompatible:
+  // NOTE: Confidence is now in 1% steps, not 10% steps, which makes following code incompatible:
   // message.react("🔁").then(() => {
   //   if (confidence >= 10 && confidence <= 100)
   //     if (confidence == 100)
@@ -174,7 +174,7 @@ function compareHashes(hash, minSimilarity) {
       similarImages.push({ ..._image, percent: percent, hash: _image.hash });
     }
   });
-  if (similarImages.length == 0 && minSimilarity >= detectConfidence) return compareHashes(hash, minSimilarity - 5);
+  if (similarImages.length == 0 && minSimilarity >= detectConfidence) return compareHashes(hash, minSimilarity - 1);
   else return { similarImages, confidence: minSimilarity };
 }
 

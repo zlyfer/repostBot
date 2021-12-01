@@ -1,5 +1,8 @@
 // jshint esversion: 6
 
+// TODO: Let only the author of the message use the buttons.
+// TODO: Delete hashes upon message deletion (manual deletion by a user).
+
 const fs = require("fs");
 const Jimp = require("jimp");
 const { Client, Intents, MessageActionRow, MessageButton } = require("discord.js");

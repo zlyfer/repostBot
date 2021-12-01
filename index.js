@@ -55,7 +55,7 @@ client.on("messageCreate", async (message) => {
           Jimp.read(attachment.url).then((image) => {
             const hash = image.hash();
             if (hash != "80000000000") {
-              // saveHash(message.id, hash); TODO: Uncomment this when ready to save hashes.
+              saveHash(message.id, hash);
               const { similarImages, confidence } = compareHashes(hash, 100);
               if (similarImages.length > 0) {
                 let messagesLinks = "";
@@ -88,7 +88,7 @@ client.on("messageCreate", async (message) => {
                     content: `Hey ${
                       message.member.displayName
                     }!\nThe image you posted seems familiar. Could you please check the link${
-                      attachments.length > 1 ? "s" : ""
+                      similarImages.length > 1 ? "s" : ""
                     } below to check if your image is a repost?\n\n**Confidence: ~${confidence}%**\n${messagesLinks}\nIf you think this **is a repost** and want to **delete your message** click on **Yes**.\nIf you think this **is a repost** and want to **keep it**, just click on **No**.\nThis is not a repost? I am still learning, to improve in the future! Please click on **Not a Repost** to help me out!\n\nThis message will self destruct in 5 minutes (hopefully).`,
                     components: [row],
                   })

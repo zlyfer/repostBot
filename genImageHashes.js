@@ -33,7 +33,7 @@ genImageHash(0);
 async function genImageHash(i) {
   let fileName = imageHashes[i].fileName;
   let path = imageFolder + fileName;
-  // console.log(`${i + 1}/${imageHashes.length} | ${fileName}`);
+  console.log(`${i + 1}/${imageHashes.length} | ${fileName}`);
   await Jimp.read(path)
     .then((image) => {
       if (image.hash() == "80000000000") buggedFiles.push(fileName);

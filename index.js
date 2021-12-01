@@ -1,5 +1,7 @@
 // jshint esversion: 6
 
+if (process.platform != "win32") process.chdir("/home/zlyfer/DiscordBots/repostBot");
+
 const fs = require("fs");
 const Jimp = require("jimp");
 const { Client, Intents, MessageActionRow, MessageButton } = require("discord.js");

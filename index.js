@@ -14,24 +14,25 @@ const client = new Client({
   ],
 });
 
+const { guildID, channelID } = require("./config.json");
 const { token } = require("./token.json");
 const { imageHashes } = require("./imageHashes.json");
 
-const guildID = "203778798406074368";
-const channelID = "378626530097496077";
-const reactionEmojis = {
-  1: "1️⃣",
-  2: "2️⃣",
-  3: "3️⃣",
-  4: "4️⃣",
-  5: "5️⃣",
-  6: "6️⃣",
-  7: "7️⃣",
-  8: "8️⃣",
-  9: "9️⃣",
-  10: "🔟",
-  0: "0️⃣",
-};
+// const reactionEmojis = {
+//   1: "1️⃣",
+//   2: "2️⃣",
+//   3: "3️⃣",
+//   4: "4️⃣",
+//   5: "5️⃣",
+//   6: "6️⃣",
+//   7: "7️⃣",
+//   8: "8️⃣",
+//   9: "9️⃣",
+//   10: "🔟",
+//   0: "0️⃣",
+// };
+
+let toAddHashes = {};
 
 client.on("ready", () => {
   console.log(`Bot (${client.user.tag}) ready.`);
@@ -40,10 +41,11 @@ client.on("ready", () => {
 client.on("interactionCreate", async (interaction) => {
   interaction.message.delete();
   const data = interaction.customId.split(":");
-  const messageID = data[0];
-  const action = data[1];
+  const action = data[0];
+  const messageID = data[1];
   const message = await interaction.message.channel.messages.fetch(messageID);
   if (action == "DELETE") message.delete();
+  if (action != "DELETE") addHash(messageID);
 });
 
 client.on("messageCreate", async (message) => {
@@ -51,63 +53,113 @@ client.on("messageCreate", async (message) => {
     if (message.channel == channelID) {
       const attachments = message.attachments;
       if (attachments.size > 0) {
-        attachments.forEach((attachment) => {
-          Jimp.read(attachment.url).then((image) => {
-            const hash = image.hash();
-            if (hash != "80000000000") {
-              saveHash(message.id, hash);
-              const { similarImages, confidence } = compareHashes(hash, 100);
-              if (similarImages.length > 0) {
-                let messagesLinks = "";
-                similarImages.forEach((image, index) => {
-                  if (index < 5) {
-                    messagesLinks += `https://discord.com/channels/${guildID}/${channelID}/${image.messageID}\n`;
-                  }
-                });
-                message.react("🔁").then(() => {
-                  if (confidence >= 10 && confidence <= 100)
-                    if (confidence == 100)
-                      message.react(reactionEmojis[10]).then(() => {
-                        message.react(reactionEmojis[0]);
-                      });
-                    else
-                      message.react(reactionEmojis[confidence / 10]).then(() => {
-                        message.react(reactionEmojis[0]);
-                      });
-                });
-                const row = new MessageActionRow().addComponents(
-                  new MessageButton().setCustomId(`${message.id}:DELETE`).setLabel("Yes").setStyle("DANGER"),
-                  new MessageButton().setCustomId(`${message.id}:IGNORE`).setLabel("No").setStyle("SUCCESS"),
-                  new MessageButton()
-                    .setCustomId(`${message.id}:NOREPOST`)
-                    .setLabel("Not a Repost")
-                    .setStyle("SECONDARY")
-                );
-                message
-                  .reply({
-                    content: `Hey ${
-                      message.member.displayName
-                    }!\nThe image you posted seems familiar. Could you please check the link${
-                      similarImages.length > 1 ? "s" : ""
-                    } below to check if your image is a repost?\n\n**Confidence: ~${confidence}%**\n${messagesLinks}\nIf you think this **is a repost** and want to **delete your message** click on **Yes**.\nIf you think this **is a repost** and want to **keep it**, just click on **No**.\nThis is not a repost? I am still learning, to improve in the future! Please click on **Not a Repost** to help me out!\n\nThis message will self destruct in 5 minutes (hopefully).`,
-                    components: [row],
-                  })
-                  .then((reply) => {
-                    setTimeout(() => {
-                      reply.delete();
-                    }, 1000 * 60 * 5);
-                  });
-              }
-            }
-          });
-        });
+        let messagesLinks = await getMessageLinks(message, { count: 0, content: "" }, attachments, 0);
+        if (messagesLinks.count != 0) sendReply(message, messagesLinks, attachments.size);
       }
     }
   }
 });
 
-function saveHash(messageID, hash) {
-  imageHashes.push({ messageID, hash });
+async function getMessageLinks(message, messagesLinks, attachments, index) {
+  let attachment = attachments.at(index);
+  let attachmentImage = await Jimp.read(attachment.url);
+  const hash = attachmentImage.hash();
+  if (!toAddHashes[message.id]) toAddHashes[message.id] = [];
+  toAddHashes[message.id].push(hash);
+  if (hash != "80000000000") {
+    const { similarImages, confidence } = compareHashes(hash, 100);
+    if (similarImages.length > 0) {
+      if (attachments.size > 1) messagesLinks.content += `${index + 1}${enumerate(index + 1)} Image | `;
+      messagesLinks.content += `*Confidence: ~${confidence}%*\n`;
+      similarImages.forEach((similarImage, index) => {
+        if (index <= 5) {
+          checkMessage(message.channel, similarImage.messageID);
+          messagesLinks.count++;
+          messagesLinks.content += `https://discord.com/channels/${guildID}/${channelID}/${similarImage.messageID}\n`;
+        }
+      });
+    } else addHash(message.id);
+  }
+  if (index < attachments.size - 1) return getMessageLinks(message, messagesLinks, attachments, index + 1);
+  else return messagesLinks;
+}
+
+function sendReply(message, messagesLinks, attachmentCount) {
+  // NOTE: Not working with multiple attachments:
+  // message.react("🔁").then(() => {
+  //   if (confidence >= 10 && confidence <= 100)
+  //     if (confidence == 100)
+  //       message.react(reactionEmojis[10]).then(() => {
+  //         message.react(reactionEmojis[0]);
+  //       });
+  //     else
+  //       message.react(reactionEmojis[confidence / 10]).then(() => {
+  //         message.react(reactionEmojis[0]);
+  //       });
+  // });
+  const row = new MessageActionRow().addComponents(
+    new MessageButton().setCustomId(`DELETE:${message.id}`).setLabel("Yes").setStyle("DANGER"),
+    new MessageButton().setCustomId(`IGNORE:${message.id}`).setLabel("No").setStyle("SUCCESS"),
+    new MessageButton().setCustomId(`NOREPOST:${message.id}`).setLabel("Not a Repost").setStyle("SECONDARY")
+  );
+  message
+    .reply({
+      content: `Hey ${
+        message.member.displayName
+      }!\nThe image you posted seems familiar. Could you please check the link${
+        messagesLinks.count > 1 ? "s" : ""
+      } below to check if this is a repost?\n\n${
+        messagesLinks.content
+      }\nIf you think this **is a repost** and want to **delete your message** click on **Yes**.\nIf you think this **is a repost** and want to **keep it**, just click on **No**.\nThis is not a repost? I am still learning, to improve in the future! Please click on **Not a Repost** to help me out!${
+        attachmentCount > 1
+          ? `\n**You posted ${attachmentCount} images in one message, if you click on Yes the whole message with all images will be deleted!**`
+          : ""
+      }\n\nThis message will self destruct in 5 minutes (hopefully).`,
+      components: [row],
+    })
+    .then((reply) => {
+      setTimeout(() => {
+        reply.delete();
+      }, 1000 * 60 * 5);
+    });
+}
+
+function enumerate(number) {
+  const _e = {
+    1: "st",
+    2: "nd",
+    3: "rd",
+    4: "th",
+  };
+  if (number > 0 && number < 5) return _e[number];
+  else return "th";
+}
+
+function checkMessage(channel, messageID) {
+  channel.messages.fetch(messageID).catch(() => {
+    removeHash(messageID);
+  });
+}
+
+function removeHash(messageID) {
+  imageHashes.splice(
+    imageHashes.findIndex((imageHash) => imageHash.messageID == messageID),
+    1
+  );
+  saveHashes();
+}
+
+function addHash(messageID) {
+  if (toAddHashes[messageID]) {
+    toAddHashes[messageID].forEach((hash) => {
+      imageHashes.push({ messageID, hash });
+    });
+    delete toAddHashes[messageID];
+    saveHashes();
+  }
+}
+
+function saveHashes() {
   fs.writeFileSync("./imageHashes.json", JSON.stringify({ imageHashes }, null, 2));
 }
 

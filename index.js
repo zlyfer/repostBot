@@ -56,7 +56,7 @@ client.on("messageCreate", async (message) => {
             const hash = image.hash();
             if (hash != "80000000000") {
               // saveHash(message.id, hash); TODO: Uncomment this when ready to save hashes.
-              const { similarImages, confidence_ } = compareHashes(hash, 100);
+              const { similarImages, confidence } = compareHashes(hash, 100);
               if (similarImages.length > 0) {
                 let messagesLinks = "";
                 similarImages.forEach((image, index) => {

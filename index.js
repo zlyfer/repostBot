@@ -57,7 +57,15 @@ client.on("messageDelete", async (message) => {
 client.on("messageCreate", async (message) => {
   if (message.guild == guildID) {
     if (message.channel == channelID) {
-      const attachments = message.attachments;
+      let attachments = message.attachments;
+      attachments = attachments.filter((attachment) => {
+        return (
+          attachment.contentType == "image/png" ||
+          attachment.contentType == "image/jpeg" ||
+          attachment.contentType == "image/gif"
+        );
+      });
+
       if (attachments.size > 0) {
         message.react("🔎").then(async (reaction) => {
           let messagesLinks = await getMessageLinks(message, { count: 0, content: "" }, attachments, 0);
@@ -73,9 +81,9 @@ async function getMessageLinks(message, messagesLinks, attachments, index) {
   let attachment = attachments.at(index);
   let attachmentImage = await Jimp.read(attachment.url);
   const hash = attachmentImage.hash();
-  if (!toAddHashes[message.id]) toAddHashes[message.id] = [];
-  toAddHashes[message.id].push(hash);
   if (hash != "80000000000") {
+    if (!toAddHashes[message.id]) toAddHashes[message.id] = [];
+    toAddHashes[message.id].push(hash);
     const { similarImages, confidence } = compareHashes(hash, 100);
     if (similarImages.length > 0) {
       if (attachments.size > 1) messagesLinks.content += `${index + 1}${enumerate(index + 1)} Image | `;

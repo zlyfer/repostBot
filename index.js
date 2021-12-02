@@ -20,22 +20,9 @@ const { guildID, channelID } = require("./config.json");
 const { token } = require("./token.json");
 const { imageHashes } = require("./imageHashes.json");
 
-const detectConfidence = 85; // % of similarity between two images to be considered a match
+const maxConfidence = 85; // % of similarity between two images to be considered a match
 const maxLinks = 5; // maximum number of links to be displayed in the message
 const minutesAutoDelete = 5; // minutes until auto deleting message
-// const reactionEmojis = {
-//   1: "1️⃣",
-//   2: "2️⃣",
-//   3: "3️⃣",
-//   4: "4️⃣",
-//   5: "5️⃣",
-//   6: "6️⃣",
-//   7: "7️⃣",
-//   8: "8️⃣",
-//   9: "9️⃣",
-//   10: "🔟",
-//   0: "0️⃣",
-// };
 
 let toAddHashes = {};
 let deleteTimer = {};
@@ -53,6 +40,8 @@ client.on("interactionCreate", async (interaction) => {
     interaction.message.delete();
     const message = await interaction.message.channel.messages.fetch(messageID);
     if (action == "DELETE") message.delete();
+    if (action == "IGNORE") message.react("🔁");
+    if (action == "NOREPOST") message.react("❌");
     if (action != "DELETE") addHash(messageID);
   }
 });
@@ -70,8 +59,11 @@ client.on("messageCreate", async (message) => {
     if (message.channel == channelID) {
       const attachments = message.attachments;
       if (attachments.size > 0) {
-        let messagesLinks = await getMessageLinks(message, { count: 0, content: "" }, attachments, 0);
-        if (messagesLinks.count != 0) sendReply(message, messagesLinks, attachments.size);
+        message.react("🔎").then(async (reaction) => {
+          let messagesLinks = await getMessageLinks(message, { count: 0, content: "" }, attachments, 0);
+          reaction.remove();
+          if (messagesLinks.count != 0) sendReply(message, messagesLinks, attachments.size);
+        });
       }
     }
   }
@@ -87,7 +79,7 @@ async function getMessageLinks(message, messagesLinks, attachments, index) {
     const { similarImages, confidence } = compareHashes(hash, 100);
     if (similarImages.length > 0) {
       if (attachments.size > 1) messagesLinks.content += `${index + 1}${enumerate(index + 1)} Image | `;
-      messagesLinks.content += `*Confidence: ~${confidence}%*\n`;
+      messagesLinks.content += `Confidence: ~${confidence}%\n`;
       similarImages.forEach((similarImage, index) => {
         if (index <= maxLinks) {
           checkMessage(message.channel, similarImage.messageID);
@@ -102,26 +94,13 @@ async function getMessageLinks(message, messagesLinks, attachments, index) {
 }
 
 function sendReply(message, messagesLinks, attachmentCount) {
-  // NOTE: Not working with multiple attachments:
-  // NOTE: Confidence is now in 1% steps, not 10% steps, which makes following code incompatible:
-  // message.react("🔁").then(() => {
-  //   if (confidence >= 10 && confidence <= 100)
-  //     if (confidence == 100)
-  //       message.react(reactionEmojis[10]).then(() => {
-  //         message.react(reactionEmojis[0]);
-  //       });
-  //     else
-  //       message.react(reactionEmojis[confidence / 10]).then(() => {
-  //         message.react(reactionEmojis[0]);
-  //       });
-  // });
   const row = new MessageActionRow().addComponents(
     new MessageButton().setCustomId(`DELETE:${message.id}:${message.author.id}`).setLabel("Yes").setStyle("DANGER"),
-    new MessageButton().setCustomId(`IGNORE:${message.id}:${message.author.id}`).setLabel("No").setStyle("SUCCESS"),
+    new MessageButton().setCustomId(`IGNORE:${message.id}:${message.author.id}`).setLabel("No").setStyle("SECONDARY"),
     new MessageButton()
       .setCustomId(`NOREPOST:${message.id}:${message.author.id}`)
       .setLabel("Not a Repost")
-      .setStyle("SECONDARY")
+      .setStyle("SUCCESS")
   );
   message
     .reply({
@@ -131,7 +110,7 @@ function sendReply(message, messagesLinks, attachmentCount) {
         messagesLinks.count > 1 ? "s" : ""
       } below to check if this is a repost?\n\n${
         messagesLinks.content
-      }\nIf you think this **is a repost** and want to **delete your message** click on **Yes**.\nIf you think this **is a repost** and want to **keep it**, just click on **No**.\nThis is not a repost? I am still learning, to improve in the future! Please click on **Not a Repost** to help me out!${
+      }\nIf you think this **is a repost** and want to **delete your message** click on **Yes**.\nIf you think this **is a repost** and want to **keep it anyway**, just click on **No**.\nThis is not a repost? Please click on **Not a Repost** to help me improve!${
         attachmentCount > 1
           ? `\n**You posted ${attachmentCount} images in one message, if you click on Yes the whole message with all images will be deleted!**`
           : ""
@@ -142,6 +121,8 @@ function sendReply(message, messagesLinks, attachmentCount) {
     })
     .then((reply) => {
       deleteTimer[message.id] = setTimeout(() => {
+        message.react("🔁");
+        addHash(message.id);
         reply.delete();
       }, 1000 * 60 * minutesAutoDelete);
     });
@@ -193,7 +174,7 @@ function compareHashes(hash, minSimilarity) {
       similarImages.push({ ..._image, percent: percent, hash: _image.hash });
     }
   });
-  if (similarImages.length == 0 && minSimilarity >= detectConfidence) return compareHashes(hash, minSimilarity - 1);
+  if (similarImages.length == 0 && minSimilarity >= maxConfidence) return compareHashes(hash, minSimilarity - 1);
   else return { similarImages, confidence: minSimilarity };
 }
 

@@ -129,7 +129,6 @@ function sendReply(message, messagesLinks, attachmentCount) {
     })
     .then((reply) => {
       deleteTimer[message.id] = setTimeout(() => {
-        message.react("🔁");
         addHash(message.id);
         reply.delete();
       }, 1000 * 60 * minutesAutoDelete);

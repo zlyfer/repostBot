@@ -103,8 +103,11 @@ async function getMessageLinks(message, messagesLinks, attachments, index) {
 
 function sendReply(message, messagesLinks, attachmentCount) {
   const row = new MessageActionRow().addComponents(
-    new MessageButton().setCustomId(`DELETE:${message.id}:${message.author.id}`).setLabel("Yes").setStyle("DANGER"),
-    new MessageButton().setCustomId(`IGNORE:${message.id}:${message.author.id}`).setLabel("No").setStyle("SECONDARY"),
+    new MessageButton().setCustomId(`DELETE:${message.id}:${message.author.id}`).setLabel("Delete").setStyle("DANGER"),
+    new MessageButton()
+      .setCustomId(`IGNORE:${message.id}:${message.author.id}`)
+      .setLabel("Ignore")
+      .setStyle("SECONDARY"),
     new MessageButton()
       .setCustomId(`NOREPOST:${message.id}:${message.author.id}`)
       .setLabel("Not a Repost")
@@ -118,7 +121,7 @@ function sendReply(message, messagesLinks, attachmentCount) {
         messagesLinks.count > 1 ? "s" : ""
       } below to check if this is a repost?\n\n${
         messagesLinks.content
-      }\nIf you think this **is a repost** and want to **delete your message** click on **Yes**.\nIf you think this **is a repost** and want to **keep it anyway**, just click on **No**.\nThis is not a repost? Please click on **Not a Repost** to help me improve!${
+      }\nIf you think this **is a repost** and want to **delete your message** click on **Delete**.\nIf you think this **is a repost** and want to **keep it anyway**, just click on **Ignore**.\nThis is not a repost? Please click on **Not a Repost** to help me improve!${
         attachmentCount > 1
           ? `\n**You posted ${attachmentCount} images in one message, if you click on Yes the whole message with all images will be deleted!**`
           : ""

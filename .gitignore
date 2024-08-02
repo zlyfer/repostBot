@@ -1,5 +1,5 @@
 node_modules
-data
+data*
 config*.json
 token*.json
 imageHashes*.json

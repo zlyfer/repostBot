@@ -1,4 +1,4 @@
-// jshint esversion: 6
+// jshint esversion: 9
 
 if (process.platform != "win32") process.chdir("/home/zlyfer/DiscordBots/repostBot");
 
@@ -68,7 +68,12 @@ client.on("messageCreate", async (message) => {
 
       if (attachments.size > 0) {
         message.react("🔎").then(async (reaction) => {
-          let messagesLinks = await getMessageLinks(message, { count: 0, content: "" }, attachments, 0);
+          let messagesLinks = await getMessageLinks(
+            message,
+            { count: 0, content: "" },
+            attachments,
+            0
+          );
           reaction.remove();
           if (messagesLinks.count != 0) sendReply(message, messagesLinks, attachments.size);
         });
@@ -86,7 +91,8 @@ async function getMessageLinks(message, messagesLinks, attachments, index) {
     toAddHashes[message.id].push(hash);
     const { similarImages, confidence } = compareHashes(hash, 100);
     if (similarImages.length > 0) {
-      if (attachments.size > 1) messagesLinks.content += `${index + 1}${enumerate(index + 1)} Image | `;
+      if (attachments.size > 1)
+        messagesLinks.content += `${index + 1}${enumerate(index + 1)} Image | `;
       messagesLinks.content += `Confidence: ~${confidence}%\n`;
       similarImages.forEach((similarImage, index) => {
         if (index <= maxLinks) {
@@ -97,13 +103,17 @@ async function getMessageLinks(message, messagesLinks, attachments, index) {
       });
     } else addHash(message.id);
   }
-  if (index < attachments.size - 1) return getMessageLinks(message, messagesLinks, attachments, index + 1);
+  if (index < attachments.size - 1)
+    return getMessageLinks(message, messagesLinks, attachments, index + 1);
   else return messagesLinks;
 }
 
 function sendReply(message, messagesLinks, attachmentCount) {
   const row = new MessageActionRow().addComponents(
-    new MessageButton().setCustomId(`DELETE:${message.id}:${message.author.id}`).setLabel("Delete").setStyle("DANGER"),
+    new MessageButton()
+      .setCustomId(`DELETE:${message.id}:${message.author.id}`)
+      .setLabel("Delete")
+      .setStyle("DANGER"),
     new MessageButton()
       .setCustomId(`IGNORE:${message.id}:${message.author.id}`)
       .setLabel("Ignore")
@@ -184,7 +194,8 @@ function compareHashes(hash, minSimilarity) {
       similarImages.push({ ..._image, percent: percent, hash: _image.hash });
     }
   });
-  if (similarImages.length == 0 && minSimilarity >= maxConfidence) return compareHashes(hash, minSimilarity - 1);
+  if (similarImages.length == 0 && minSimilarity >= maxConfidence)
+    return compareHashes(hash, minSimilarity - 1);
   else return { similarImages, confidence: minSimilarity };
 }
 

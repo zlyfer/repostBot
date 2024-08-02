@@ -1,7 +1,5 @@
 // jshint esversion: 9
 
-if (process.platform != "win32") process.chdir("/home/zlyfer/DiscordBots/repostBot");
-
 const fs = require("fs");
 const Jimp = require("jimp");
 const { Client, Intents, MessageActionRow, MessageButton } = require("discord.js");
@@ -28,7 +26,8 @@ let toAddHashes = {};
 let deleteTimer = {};
 
 client.on("ready", () => {
-  console.log(`Bot (${client.user.tag}) ready.`);
+  console.log(`Bot is ready.`);
+  console.log(`Logged in as ${client.user.tag}!`);
 });
 
 client.on("interactionCreate", async (interaction) => {
@@ -198,5 +197,22 @@ function compareHashes(hash, minSimilarity) {
     return compareHashes(hash, minSimilarity - 1);
   else return { similarImages, confidence: minSimilarity };
 }
+
+/* ---------- Bot Shutdown ---------- */
+
+const handleShutdown = async () => {
+  console.info("Logging out and shutting down...");
+  await client.destroy();
+  process.exit(0);
+};
+
+process.on("SIGINT", handleShutdown);
+process.on("SIGTERM", handleShutdown);
+
+process.on("unhandledRejection", (err) => {
+  console.error("UNHANDLED: " + err);
+});
+
+/* ----------- Bot Startup ---------- */
 
 client.login(token);
